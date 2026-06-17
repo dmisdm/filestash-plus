@@ -30,6 +30,30 @@ export function renderLeaf({ format, label, description, type }) {
     return $el;
 }
 
+/** Flatten a backend LoginForm spec for the admin storage page (no advanced toggles). */
+export function flattenBackendFields(spec) {
+    if (!spec) return {};
+    const flat = JSON.parse(JSON.stringify(spec));
+    for (const input in flat) {
+        if (flat[input]?.type === "enable") {
+            delete flat[input];
+        } else if (flat[input]?.id) {
+            delete flat[input].id;
+        }
+    }
+    delete flat.type;
+    return flat;
+}
+
+export function connectionParamsToFormState(label, params) {
+    const state = {};
+    for (const [key, value] of Object.entries(params)) {
+        if (key === "type" || key === "label") continue;
+        if (value != null && value !== "") state[`${label}.${key}`] = value;
+    }
+    return state;
+}
+
 export function useForm$($inputNodeList) {
     return rxjs.pipe(
         rxjs.mergeMap(() => $inputNodeList()),

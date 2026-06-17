@@ -123,6 +123,7 @@ func ShareUpsert(p *Share) error {
 		CanRead      bool    `json:"can_read"`
 		CanWrite     bool    `json:"can_write"`
 		CanUpload    bool    `json:"can_upload"`
+		CanDownload  bool    `json:"can_download"`
 	}{
 		Password:     p.Password,
 		Users:        p.Users,
@@ -133,6 +134,7 @@ func ShareUpsert(p *Share) error {
 		CanRead:      p.CanRead,
 		CanWrite:     p.CanWrite,
 		CanUpload:    p.CanUpload,
+		CanDownload:  p.CanDownload,
 	})
 	_, err = stmt.Exec(p.Id, p.Backend, p.Path, j, p.Auth)
 	return err

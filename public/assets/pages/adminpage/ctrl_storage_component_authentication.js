@@ -12,7 +12,7 @@ import {
     getMiddlewareAvailable, getMiddlewareEnabled, toggleMiddleware,
     getBackendAvailable, getBackendEnabled,
 } from "./ctrl_storage_state.js";
-import { renderLeaf } from "./helper_form.js";
+import { renderLeaf, flattenBackendFields } from "./helper_form.js";
 import { get as getAdminConfig, save as saveConfig } from "./model_config.js";
 
 import "./component_box-item.js";
@@ -153,6 +153,7 @@ export default async function(render) {
                 spec.attribute_mapping.related_backend.value = cfg?.middleware?.attribute_mapping?.related_backend?.value;
                 return spec;
             }),
+            rxjs.catchError(() => rxjs.of(spec)),
         )),
         rxjs.concatMap(async(specs) => await createForm(specs, formTmpl({}))),
         applyMutation(qs($page, `[data-bind="attribute-mapping"]`), "replaceChildren"),
@@ -204,17 +205,8 @@ export default async function(render) {
                 .filter((label) => !!label)),
         )),
         rxjs.mergeMap((backends) => getBackendAvailable().pipe(rxjs.first(), rxjs.map((specs) => {
-            // we don't want to show the "normal" form but a flat version of it
-            // so we're getting rid of anything that could make some magic happen like toggle and
-            // ids which enable those interactions
             for (const key in specs) {
-                for (const input in specs[key]) {
-                    if (specs[key][input]["type"] === "enable") {
-                        delete specs[key][input];
-                    } else if ("id" in specs[key][input]) {
-                        delete specs[key][input]["id"];
-                    }
-                }
+                specs[key] = flattenBackendFields(specs[key]);
             }
             return [backends, specs];
         }))),

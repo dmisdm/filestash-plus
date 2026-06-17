@@ -98,6 +98,16 @@ type S3Path struct {
 }
 
 func (s S3Backend) path(p string) S3Path {
+	if s.params["bucket"] != "" {
+		bucket := s.params["bucket"]
+		objectPath := strings.TrimPrefix(p, "/")
+		if idx := strings.Index(objectPath, "/"); idx >= 0 {
+			objectPath = objectPath[idx+1:]
+		} else {
+			objectPath = ""
+		}
+		return S3Path{bucket, objectPath}
+	}
 	sp := strings.Split(p, "/")
 	bucket := ""
 	if len(sp) > 1 {

@@ -31,3 +31,10 @@ func CanShare(ctx *App) bool {
 	}
 	return true
 }
+
+func CanDownload(ctx *App) bool {
+	if ctx.Share.Id != "" {
+		return ctx.Share.CanDownload
+	}
+	return true
+}

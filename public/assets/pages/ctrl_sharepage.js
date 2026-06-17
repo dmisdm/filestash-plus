@@ -5,7 +5,7 @@ import { navigate, toHref } from "../lib/skeleton/router.js";
 import { transition, zoomIn } from "../lib/animate.js";
 import ajax from "../lib/ajax.js";
 import { AjaxError } from "../lib/error.js";
-import { basename } from "../lib/path.js";
+import { basename, forwardURLParams } from "../lib/path.js";
 import { loadCSS } from "../helpers/loader.js";
 import { isDir } from "../pages/filespage/helper.js";
 import assert from "../lib/assert.js";
@@ -25,6 +25,11 @@ export default function(render) {
         else if (step === "email") return ctrlEmail(render, { shareID, setState });
         else if (step === "code") return ctrlEmailCodeVerification(render, { shareID, setState });
         else if (step === "done") {
+            if (state["can_download"]) {
+                const path = encodeURIComponent(state["path"]);
+                location.href = "/" + forwardURLParams(`api/files/cat?path=${path}&mode=download&name=${encodeURIComponent(basename(state["path"]))}&share=${shareID}`, ["share"]);
+                return rxjs.EMPTY;
+            }
             if (isDir(state["path"])) navigate(toHref(`/files/?share=${shareID}`));
             else navigate(toHref(`/view/${encodeURIComponent(basename(state["path"]))}?share=${shareID}&nav=false`));
             return rxjs.EMPTY;
@@ -88,8 +93,8 @@ function verify(_, { shareID, setState, body }) {
         responseType: "json",
         body,
     }).pipe(rxjs.mergeMap(({ responseJSON }) => {
-        const { key = "", path } = responseJSON.result;
-        if (key === "") setState({ step: "done", path });
+        const { key = "", path, can_download, can_read, can_write, can_upload } = responseJSON.result;
+        if (key === "") setState({ step: "done", path, can_download, can_read, can_write, can_upload });
         else setState({ step: key });
 
         return rxjs.of(!("error" in responseJSON.result));

@@ -6,6 +6,18 @@ import (
 	"strings"
 )
 
+func MergeConnectionDefaults(conn map[string]string) {
+	label := conn["label"]
+	if label == "" {
+		return
+	}
+	for k, v := range ConnectionDefaults(label) {
+		if conn[k] == "" {
+			conn[k] = v
+		}
+	}
+}
+
 func NewBackend(ctx *App, conn map[string]string) (IBackend, error) {
 	isAllowed := func() bool {
 		// by default, a hacker could use filestash to establish connections outside of what's
@@ -16,6 +28,11 @@ func NewBackend(ctx *App, conn map[string]string) (IBackend, error) {
 			if d["type"] != conn["type"] {
 				continue
 			}
+			if connLabel := conn["label"]; connLabel != "" {
+				if fmt.Sprint(d["label"]) != connLabel {
+					continue
+				}
+			}
 			if val, ok := d["hostname"]; ok == true {
 				if val != conn["hostname"] {
 					continue
@@ -25,9 +42,21 @@ func NewBackend(ctx *App, conn map[string]string) (IBackend, error) {
 				if val == nil {
 					val = "/"
 				}
-				if configPath, ok := val.(string); ok == false {
+				configPath, ok := val.(string)
+				if ok == false {
 					continue
-				} else if strings.HasPrefix(conn["path"], configPath) == false {
+				}
+				connPath := conn["path"]
+				if connPath == "" {
+					connPath = "/"
+				}
+				if strings.HasPrefix(connPath, configPath) == false {
+					continue
+				}
+			}
+			if val, ok := d["bucket"]; ok == true {
+				configBucket := fmt.Sprint(val)
+				if configBucket != "" && conn["bucket"] != "" && conn["bucket"] != configBucket {
 					continue
 				}
 			}
@@ -48,6 +77,29 @@ func NewBackend(ctx *App, conn map[string]string) (IBackend, error) {
 		return Backend.Get(BACKEND_NIL), ErrNotAllowed
 	}
 	return Backend.Get(conn["type"]).Init(conn, ctx)
+}
+
+func ConnectionDefaults(label string) map[string]string {
+	defaults := map[string]string{}
+	if label == "" {
+		return defaults
+	}
+	for i := range Config.Conn {
+		if fmt.Sprint(Config.Conn[i]["label"]) != label {
+			continue
+		}
+		for k, v := range Config.Conn[i] {
+			if k == "label" {
+				continue
+			}
+			if v == nil {
+				continue
+			}
+			defaults[k] = fmt.Sprintf("%v", v)
+		}
+		break
+	}
+	return defaults
 }
 
 func GetHome(b IBackend, base string) (string, error) {

@@ -84,6 +84,7 @@ func ShareUpsert(ctx *App, res http.ResponseWriter, req *http.Request) {
 		CanRead:      NewBoolFromInterface(ctx.Body["can_read"]),
 		CanWrite:     NewBoolFromInterface(ctx.Body["can_write"]),
 		CanUpload:    NewBoolFromInterface(ctx.Body["can_upload"]),
+		CanDownload:  NewBoolFromInterface(ctx.Body["can_download"]),
 	}
 	if err := model.ShareUpsert(&s); err != nil {
 		Log.Debug("share::upsert '%s'", err.Error())
@@ -198,16 +199,18 @@ func ShareVerifyProof(ctx *App, res http.ResponseWriter, req *http.Request) {
 	}
 
 	SendSuccessResult(res, struct {
-		Id        string `json:"id"`
-		Path      string `json:"path"`
-		CanRead   bool   `json:"can_read"`
-		CanWrite  bool   `json:"can_write"`
-		CanUpload bool   `json:"can_upload"`
+		Id          string `json:"id"`
+		Path        string `json:"path"`
+		CanRead     bool   `json:"can_read"`
+		CanWrite    bool   `json:"can_write"`
+		CanUpload   bool   `json:"can_upload"`
+		CanDownload bool   `json:"can_download"`
 	}{
-		Id:        s.Id,
-		Path:      s.Path,
-		CanRead:   s.CanRead,
-		CanWrite:  s.CanWrite,
-		CanUpload: s.CanUpload,
+		Id:          s.Id,
+		Path:        s.Path,
+		CanRead:     s.CanRead,
+		CanWrite:    s.CanWrite,
+		CanUpload:   s.CanUpload,
+		CanDownload: s.CanDownload,
 	})
 }

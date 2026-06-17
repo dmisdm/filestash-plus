@@ -81,12 +81,24 @@ export function getState() {
         rxjs.first(),
         formObjToJSON$(),
         rxjs.map((config) => { // connections
-            const connections = [];
             const formData = new FormData(qs(document.body, `[data-bind="backend-enabled"]`));
-            for (const [type, label] of formData.entries()) {
-                connections.push({ type, label });
+            const byLabel = new Map();
+            for (const [name, value] of formData.entries()) {
+                const dot = name.indexOf(".");
+                // Some browsers normalize "<label>." field names into "<label>".
+                // Treat dotless entries as label values so backend labels aren't dropped.
+                const labelKey = dot < 0 ? name : name.slice(0, dot);
+                const field = dot < 0 ? "" : name.slice(dot + 1);
+                if (!byLabel.has(labelKey)) byLabel.set(labelKey, {});
+                const conn = byLabel.get(labelKey);
+                if (field === "") conn.label = value;
+                else if (value !== "") conn[field] = value;
             }
-            config.connections = connections;
+            config.connections = [];
+            for (const conn of byLabel.values()) {
+                if (!conn.type || !conn.label) continue;
+                config.connections.push(conn);
+            }
             return config;
         }),
         rxjs.map((config) => { // middleware

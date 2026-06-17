@@ -28,6 +28,7 @@ export default function(render, { path }) {
             <div class="share--content link-type no-select">
                 <button data-role="viewer">${t("Viewer")}</button>
                 <button data-role="editor">${t("Editor")}</button>
+                <button data-role="download" class="${isDir(path) ? "hidden" : ""}">${t("Download")}</button>
                 <button data-role="uploader" class="${isDir(path) ? "" : "hidden"}">${t("Uploader")}</button>
             </div>
             <div data-bind="share-body"></div>
@@ -51,6 +52,7 @@ export default function(render, { path }) {
     effect(rxjs.merge(
         onClick(qs($modal, `[data-role="viewer"]`)).pipe(toggle("viewer")),
         onClick(qs($modal, `[data-role="editor"]`)).pipe(toggle("editor")),
+        onClick(qs($modal, `[data-role="download"]`)).pipe(toggle("download")),
         onClick(qs($modal, `[data-role="uploader"]`)).pipe(toggle("uploader")),
         role$.asObservable(),
     ).pipe(rxjs.tap(() => {
@@ -342,11 +344,14 @@ function roleToShareObj(role) {
             else if (r === "editor") return true;
             return false;
         }(role)),
+        can_download: role === "download",
     };
 }
 
-function shareObjToRole({ can_read, can_write, can_upload }) {
-    if (can_read === true && can_write === false && can_upload === false) {
+function shareObjToRole({ can_read, can_write, can_upload, can_download }) {
+    if (can_download === true && can_read === false && can_write === false && can_upload === false) {
+        return "download";
+    } else if (can_read === true && can_write === false && can_upload === false) {
         return "viewer";
     } else if (can_read === false && can_write === false && can_upload === true) {
         return "uploader";

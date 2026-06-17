@@ -23,6 +23,17 @@ type IBackend interface {
 	LoginForm() Form
 }
 
+// IBackendDirectAccess is implemented by backends that can serve file content via
+// short-lived presigned URLs instead of streaming bytes through the application server.
+type IBackendDirectAccess interface {
+	PresignGet(path string, expire time.Duration, opts DirectAccessOpts) (string, error)
+}
+
+type DirectAccessOpts struct {
+	Filename    string
+	Disposition string // "inline" or "attachment"
+}
+
 type IAuthentication interface {
 	Setup() Form
 	EntryPoint(idpParams map[string]string, req *http.Request, res http.ResponseWriter) error
@@ -191,6 +202,7 @@ type Share struct {
 	CanRead      bool    `json:"can_read"`
 	CanWrite     bool    `json:"can_write"`
 	CanUpload    bool    `json:"can_upload"`
+	CanDownload  bool    `json:"can_download"`
 }
 
 func (s Share) IsValid() error {
@@ -223,6 +235,7 @@ func (s *Share) MarshalJSON() ([]byte, error) {
 		s.CanRead,
 		s.CanWrite,
 		s.CanUpload,
+		s.CanDownload,
 	}
 	return json.Marshal(p)
 }
@@ -251,6 +264,8 @@ func (s *Share) UnmarshallJSON(b []byte) error {
 			s.CanWrite = NewBoolFromInterface(value)
 		case "can_upload":
 			s.CanUpload = NewBoolFromInterface(value)
+		case "can_download":
+			s.CanDownload = NewBoolFromInterface(value)
 		}
 	}
 	return nil

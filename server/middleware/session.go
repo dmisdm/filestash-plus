@@ -315,6 +315,7 @@ func _extractSession(req *http.Request, ctx *App) (map[string]string, error) {
 }
 
 func _extractBackend(req *http.Request, ctx *App) (IBackend, error) {
+	model.MergeConnectionDefaults(ctx.Session)
 	return model.NewBackend(ctx, ctx.Session)
 }
 

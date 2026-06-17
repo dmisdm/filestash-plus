@@ -1,12 +1,13 @@
 import { createElement } from "../../lib/skeleton/index.js";
 import rxjs, { effect, applyMutations, applyMutation, onClick } from "../../lib/rx.js";
-import { createForm } from "../../lib/form.js";
+import { createForm, mutateForm } from "../../lib/form.js";
 import { qs, qsa } from "../../lib/dom.js";
 import { formTmpl } from "../../components/form.js";
 import { generateSkeleton } from "../../components/skeleton.js";
 import ctrlError from "../ctrl_error.js";
 
 import { getState, getBackendAvailable, getBackendEnabled, addBackendEnabled, removeBackendEnabled } from "./ctrl_storage_state.js";
+import { flattenBackendFields, connectionParamsToFormState } from "./helper_form.js";
 import { save as saveConfig } from "./model_config.js";
 
 import "./component_box-item.js";
@@ -63,15 +64,22 @@ export default async function(render) {
     ));
 
     // feature: setup form
-    const setupForm$ = getBackendEnabled().pipe(
-        // initialise the forms
-        rxjs.mergeMap((enabled) => Promise.all(enabled.map(({ type, label }) => createForm({
-            [type]: {
-                "": { type: "text", placeholder: "Label", value: label },
-            }
-        }, formTmpl({
-            renderLeaf: () => createElement("<label></label>"),
-            renderNode: ({ label, format }) => {
+    const setupForm$ = rxjs.combineLatest([
+        getBackendEnabled(),
+        getBackendAvailable().pipe(rxjs.first()),
+    ]).pipe(
+        rxjs.mergeMap(([enabled, backendSpecs]) => Promise.all(enabled.map((conn) => {
+            const { type, label, ...params } = conn;
+            const spec = {
+                [label]: {
+                    type: { type: "hidden", value: type },
+                    "": { type: "text", placeholder: "Label", value: label },
+                    ...flattenBackendFields(backendSpecs[type]),
+                },
+            };
+            return createForm(mutateForm(spec, connectionParamsToFormState(label, params)), formTmpl({
+                renderLeaf: () => createElement("<label></label>"),
+                renderNode: ({ label, format }) => {
                 const $fieldset = createElement(`
                     <fieldset>
                         <legend class="no-select">
@@ -87,8 +95,9 @@ export default async function(render) {
                 `);
                 $fieldset.appendChild($remove);
                 return $fieldset;
-            },
-        }))))),
+                },
+            }));
+        }))),
         rxjs.tap(() => $enabled.innerHTML = ""),
         rxjs.mergeMap((nodeList) => {
             if (nodeList.length === 0) return rxjs.of(createElement(`
@@ -111,7 +120,16 @@ export default async function(render) {
     effect(setupForm$.pipe(
         rxjs.mergeMap(($nodes) => $nodes),
         rxjs.mergeMap(($node) => onClick($node.querySelector(".icons"))),
-        rxjs.map(($node) => qs($node.parentElement, "input").value),
+        rxjs.map(($node) => {
+            const $fieldset = $node.closest("fieldset");
+            // Browsers may normalize "<label>." names to "<label>".
+            // Prefer the dedicated label input and keep name-based fallback.
+            const $labelInput = $fieldset.querySelector(
+                'input[placeholder="Label"], input[name$="."]',
+            );
+            return $labelInput ? $labelInput.value.trim() : "";
+        }),
+        rxjs.filter((label) => label !== ""),
         rxjs.mergeMap((label) => removeBackendEnabled(label)),
         saveConnections(),
     ));

@@ -119,6 +119,11 @@ func (this S3Backend) LoginForm() Form {
 				Placeholder: "Secret Access Key*",
 			},
 			FormElement{
+				Name:        "bucket",
+				Type:        "text",
+				Placeholder: "Bucket",
+			},
+			FormElement{
 				Name:        "advanced",
 				Type:        "enable",
 				Placeholder: "Advanced",
@@ -180,7 +185,7 @@ func (this S3Backend) LoginForm() Form {
 }
 
 func (this S3Backend) Meta(path string) Metadata {
-	if path == "/" {
+	if EnforceDirectory(path) == "/" {
 		return Metadata{
 			CanCreateFile: NewBool(false),
 			CanRename:     NewBool(false),
@@ -191,8 +196,26 @@ func (this S3Backend) Meta(path string) Metadata {
 	return Metadata{}
 }
 
+func (this S3Backend) Home() (string, error) {
+	if this.params["bucket"] == "" {
+		return "/", nil
+	}
+	if prefix := strings.Trim(this.params["path"], "/"); prefix != "" {
+		return "/" + this.params["bucket"] + "/" + prefix + "/", nil
+	}
+	return "/", nil
+}
+
 func (this S3Backend) Ls(path string) (files []os.FileInfo, err error) {
 	files = make([]os.FileInfo, 0)
+	if this.params["bucket"] != "" && EnforceDirectory(path) == "/" {
+		files = append(files, &File{
+			FName: this.params["bucket"],
+			FType: "directory",
+			FTime: 0,
+		})
+		return files, nil
+	}
 	p := this.path(path)
 	if p.bucket == "" {
 		client := s3.New(this.newSession())
@@ -338,6 +361,45 @@ func (this S3Backend) Cat(path string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return obj.Body, nil
+}
+
+func (this S3Backend) PresignGet(path string, expire time.Duration, opts DirectAccessOpts) (string, error) {
+	p := this.path(path)
+	if p.bucket == "" || p.path == "" {
+		return "", ErrNotValid
+	}
+	client := s3.New(this.createSession(p.bucket))
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(p.bucket),
+		Key:    aws.String(p.path),
+	}
+	if this.params["encryption_key"] != "" {
+		input.SSECustomerAlgorithm = aws.String("AES256")
+		input.SSECustomerKey = aws.String(this.params["encryption_key"])
+	}
+	if opts.Disposition == "attachment" {
+		filename := opts.Filename
+		if filename == "" {
+			filename = filepath.Base(path)
+		}
+		input.ResponseContentDisposition = aws.String(`attachment; filename="` + filename + `"`)
+	} else if opts.Filename != "" {
+		input.ResponseContentDisposition = aws.String(`inline; filename="` + opts.Filename + `"`)
+	}
+	req, _ := client.GetObjectRequest(input)
+	url, err := req.Presign(expire)
+	if err != nil {
+		awsErr, ok := err.(awserr.Error)
+		if ok && awsErr.Code() == "InvalidArgument" && strings.Contains(awsErr.Message(), "secret key was invalid") {
+			return "", NewError("This file is encrypted file, you need the correct key!", 400)
+		} else if ok && awsErr.Code() == "AccessDenied" {
+			return "", ErrNotAllowed
+		} else if ok && awsErr.Code() == "InvalidObjectState" {
+			return "", ErrNotReachable
+		}
+		return "", err
+	}
+	return url, nil
 }
 
 func (this S3Backend) Mkdir(path string) error {

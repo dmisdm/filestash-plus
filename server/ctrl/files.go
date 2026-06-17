@@ -205,7 +205,7 @@ func FileCat(ctx *App, res http.ResponseWriter, req *http.Request) {
 		MaxAge: -1,
 		Path:   "/",
 	})
-	if model.CanRead(ctx) == false {
+	if model.CanRead(ctx) == false && !(model.CanDownload(ctx) && query.Get("mode") == "download") {
 		Log.Debug("cat::permission 'permission denied'")
 		SendErrorResult(res, ErrPermissionDenied)
 		return
@@ -225,6 +225,27 @@ func FileCat(ctx *App, res http.ResponseWriter, req *http.Request) {
 			}
 		} else if err = auth.Cat(ctx, path); err != nil {
 			SendErrorResult(res, ErrNotAuthorized)
+			return
+		}
+	}
+
+	// S3 and similar backends serve content via presigned URLs — never proxy bytes through the server.
+	if req.Method != http.MethodPost && query.Get("thumbnail") != "true" {
+		if presigner, ok := ctx.Backend.(IBackendDirectAccess); ok {
+			opts := DirectAccessOpts{Disposition: "inline", Filename: filepath.Base(path)}
+			if query.Get("mode") == "download" {
+				opts.Disposition = "attachment"
+				if fname := query.Get("name"); fname != "" {
+					opts.Filename = fname
+				}
+			}
+			presignedURL, err := presigner.PresignGet(path, 15*time.Minute, opts)
+			if err != nil {
+				Log.Debug("cat::presign '%s'", err.Error())
+				SendErrorResult(res, err)
+				return
+			}
+			http.Redirect(res, req, presignedURL, http.StatusTemporaryRedirect)
 			return
 		}
 	}

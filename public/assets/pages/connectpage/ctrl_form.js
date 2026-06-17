@@ -6,7 +6,7 @@ import { qs, qsa, safe } from "../../lib/dom.js";
 import { animate, slideYIn, transition, opacityIn } from "../../lib/animate.js";
 import assert from "../../lib/assert.js";
 import { forwardURLParams } from "../../lib/path.js";
-import { createForm } from "../../lib/form.js";
+import { createForm, mutateForm } from "../../lib/form.js";
 import { settings_get, settings_put } from "../../lib/settings.js";
 import t from "../../locales/index.js";
 import { formTmpl } from "../../components/form.js";
@@ -67,12 +67,14 @@ export default async function(render) {
 
     // feature3: create the storage forms
     const formSpecs$ = connections$.pipe(rxjs.mergeMap((conns) => backend$.pipe(
-        rxjs.map((backendSpecs) => conns.map(({ type, middleware, label }) => {
-            if (middleware) return { // admin has set this storage as auth middleware
+        rxjs.map((backendSpecs) => conns.map((conn) => {
+            const { type, middleware, label, ...params } = conn;
+            if (middleware) return {
                 middleware: { type: "hidden" },
                 label: { type: "hidden", value: label },
             };
-            return backendSpecs[type] || {};
+            const spec = JSON.parse(JSON.stringify(backendSpecs[type] || {}));
+            return mutateForm(spec, params);
         })),
     )));
     effect(getCurrentBackend().pipe(
@@ -157,7 +159,8 @@ export default async function(render) {
                 rxjs.map((conns) => conns.filter(({ middleware, type }) => middleware !== true && type === urlParams["type"])),
                 rxjs.mergeMap((conns) => {
                     if (conns.length === 0) return rxjs.EMPTY;
-                    return rxjs.of(urlParams);
+                    const params = { ...urlParams, label: conns[0].label };
+                    return rxjs.of(params);
                 }),
             )),
         ),
@@ -196,11 +199,19 @@ export default async function(render) {
             );
         }),
         rxjs.mergeMap((formData) => { // CASE 3: regular login
-            delete formData["label"];
             delete formData["middleware"];
-            return rxjs.of(null).pipe(
+            return rxjs.combineLatest([
+                rxjs.of(formData),
+                connections$.pipe(rxjs.first()),
+                getCurrentBackend().pipe(rxjs.first()),
+            ]).pipe(
+                rxjs.map(([data, conns, n]) => {
+                    const label = conns[n]?.label;
+                    if (label) data["label"] = label;
+                    return data;
+                }),
                 rxjs.tap(() => toggleLoader(true)),
-                rxjs.mergeMap(() => createSession(formData)),
+                rxjs.mergeMap((data) => createSession(data)),
                 rxjs.tap(({ home, backendID }) => {
                     updateBackend(backendID);
                     let redirectURL = toHref("/files/");
@@ -215,7 +226,7 @@ export default async function(render) {
                     toggleLoader(false);
                     notification.error(t(err && err.message));
                     return rxjs.EMPTY;
-                })
+                }),
             );
         }),
     ));

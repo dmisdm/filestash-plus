@@ -52,6 +52,7 @@ func SessionGet(ctx *App, res http.ResponseWriter, req *http.Request) {
 func SessionAuthenticate(ctx *App, res http.ResponseWriter, req *http.Request) {
 	ctx.Body["timestamp"] = time.Now().Format(time.RFC3339)
 	session := model.MapStringInterfaceToMapStringString(ctx.Body)
+	model.MergeConnectionDefaults(session)
 	session["path"] = EnforceDirectory(session["path"])
 
 	backend, err := model.NewBackend(ctx, session)
@@ -425,6 +426,8 @@ func SessionAuthMiddleware(ctx *App, res http.ResponseWriter, req *http.Request)
 			mappingToUse[k] = out
 		}
 		mappingToUse["timestamp"] = time.Now().Format(time.RFC3339)
+		mappingToUse["label"] = label
+		model.MergeConnectionDefaults(mappingToUse)
 		if label != "" && Config.Get("general.extended_session").Bool() {
 			pluginCallback["label"] = label
 			if jsonStr, err := json.Marshal(pluginCallback); err == nil {
