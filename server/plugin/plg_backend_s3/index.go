@@ -130,6 +130,7 @@ func (this S3Backend) LoginForm() Form {
 				Target: []string{
 					"s3_region", "s3_endpoint", "s3_role_arn", "s3_session_token",
 					"s3_path", "s3_encryption_key", "s3_number_thread", "s3_timeout",
+					"s3_cloudfront_url", "s3_cloudfront_prefix",
 				},
 			},
 			FormElement{
@@ -179,6 +180,18 @@ func (this S3Backend) LoginForm() Form {
 				Name:        "timeout",
 				Type:        "number",
 				Placeholder: "List Object Timeout",
+			},
+			FormElement{
+				Id:          "s3_cloudfront_url",
+				Name:        "cloudfront_url",
+				Type:        "text",
+				Placeholder: "CloudFront URL (e.g. https://d12345.cloudfront.net)",
+			},
+			FormElement{
+				Id:          "s3_cloudfront_prefix",
+				Name:        "cloudfront_prefix",
+				Type:        "text",
+				Placeholder: "CDN Prefix (default: /)",
 			},
 		},
 	}

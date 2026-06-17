@@ -10,6 +10,34 @@ import (
 	"strings"
 )
 
+func ShareCDNUrl(ctx *App, res http.ResponseWriter, req *http.Request) {
+	path, err := PathBuilder(ctx, req.URL.Query().Get("path"))
+	if err != nil {
+		SendSuccessResult(res, nil)
+		return
+	}
+
+	defaults := model.ConnectionDefaults(ctx.Session["label"])
+	cdnURL := defaults["cloudfront_url"]
+	if cdnURL == "" {
+		SendSuccessResult(res, nil)
+		return
+	}
+
+	cdnPrefix := defaults["cloudfront_prefix"]
+	if cdnPrefix == "" {
+		cdnPrefix = "/"
+	}
+	if !strings.HasPrefix(path, cdnPrefix) {
+		SendSuccessResult(res, nil)
+		return
+	}
+
+	SendSuccessResult(res, map[string]string{
+		"url": strings.TrimRight(cdnURL, "/") + path,
+	})
+}
+
 func ShareList(ctx *App, res http.ResponseWriter, req *http.Request) {
 	path, err := PathBuilder(ctx, req.URL.Query().Get("path"))
 	if err != nil {

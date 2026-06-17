@@ -21,7 +21,16 @@ const IMAGE = {
     EDIT: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjkgMTI5Ij4KICA8cGF0aCBmaWxsPSIjNkY2RjZGIiBkPSJtMTE5LjIsMTE0LjNoLTEwOS40Yy0yLjMsMC00LjEsMS45LTQuMSw0LjFzMS45LDQuMSA0LjEsNC4xaDEwOS41YzIuMywwIDQuMS0xLjkgNC4xLTQuMXMtMS45LTQuMS00LjItNC4xeiIgLz4KICA8cGF0aCBmaWxsPSIjNkY2RjZGIiBkPSJtNS43LDc4bC0uMSwxOS41YzAsMS4xIDAuNCwyLjIgMS4yLDMgMC44LDAuOCAxLjgsMS4yIDIuOSwxLjJsMTkuNC0uMWMxLjEsMCAyLjEtMC40IDIuOS0xLjJsNjctNjdjMS42LTEuNiAxLjYtNC4yIDAtNS45bC0xOS4yLTE5LjRjLTEuNi0xLjYtNC4yLTEuNi01LjktMS43NzYzNmUtMTVsLTEzLjQsMTMuNS01My42LDUzLjVjLTAuNywwLjgtMS4yLDEuOC0xLjIsMi45em03MS4yLTYxLjFsMTMuNSwxMy41LTcuNiw3LjYtMTMuNS0xMy41IDcuNi03LjZ6bS02Mi45LDYyLjlsNDkuNC00OS40IDEzLjUsMTMuNS00OS40LDQ5LjMtMTMuNiwuMSAuMS0xMy41eiIvPgo8L3N2Zz4K",
 };
 
-export default function(render, { path }) {
+export default async function(render, { path }) {
+    const cdnResult = await ajax({
+        url: `api/share/cdn?path=` + encodeURIComponent(path),
+        method: "GET",
+        responseType: "json",
+    }).toPromise().catch(() => null);
+    if (cdnResult && cdnResult.responseJSON && cdnResult.responseJSON.result && cdnResult.responseJSON.result.url) {
+        return ctrlCDNShare(render, { url: cdnResult.responseJSON.result.url });
+    }
+
     const $modal = createElement(`
         <div class="component_share">
             <h2>${t("Create a New Link")}</h2>
@@ -325,6 +334,27 @@ async function ctrlCreateShare(render, { save, formState }) {
             throw err;
         }),
         rxjs.retry(),
+    ));
+}
+
+function ctrlCDNShare(render, { url }) {
+    const $modal = createElement(`
+        <div class="component_share">
+            <h2>${t("Public CDN Link")}</h2>
+            <div class="shared-link">
+                <input class="copy" type="text" readonly="" value="${safe(url)}">
+                <button title="Copy URL">
+                    <img class="component_icon" draggable="false" src="${IMAGE.COPY}" alt="copy">
+                </button>
+            </div>
+        </div>
+    `);
+    render($modal);
+    effect(onClick(qs($modal, ".shared-link")).pipe(
+        rxjs.tap(() => {
+            copyToClipboard(url);
+            notification.info(t("The link was copied in the clipboard"));
+        }),
     ));
 }
 

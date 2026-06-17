@@ -71,6 +71,7 @@ func Build(r *mux.Router) {
 	share := r.PathPrefix(WithBase("/api/share")).Subrouter()
 	middlewares = []Middleware{ApiHeaders, SecureHeaders, SecureOrigin, SessionStart, LoggedInOnly, PluginInjector}
 	share.HandleFunc("", NewMiddlewareChain(ShareList, middlewares)).Methods("GET")
+	share.HandleFunc("/cdn", NewMiddlewareChain(ShareCDNUrl, middlewares)).Methods("GET")
 	middlewares = []Middleware{ApiHeaders, SecureHeaders, SecureOrigin, BodyParser, PluginInjector}
 	share.HandleFunc("/{share}/proof", NewMiddlewareChain(ShareVerifyProof, middlewares)).Methods("POST")
 	middlewares = []Middleware{ApiHeaders, SecureHeaders, SecureOrigin, CanManageShare, PluginInjector}
