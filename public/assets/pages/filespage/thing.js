@@ -2,6 +2,7 @@ import { createElement } from "../../lib/skeleton/index.js";
 import { animate, opacityOut, opacityIn } from "../../lib/animate.js";
 import assert from "../../lib/assert.js";
 import { forwardURLParams } from "../../lib/path.js";
+import { get as getConfig } from "../../model/config.js";
 import { extractPath, isDir, isNativeFileUpload } from "./helper.js";
 import { files$ } from "./ctrl_filesystem.js";
 import { addSelection, isSelected, clearSelection, expandSelection } from "./state_selection.js";
