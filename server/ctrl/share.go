@@ -33,8 +33,12 @@ func ShareCDNUrl(ctx *App, res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	cdnPath := path
+	if cdnPrefix != "/" {
+		cdnPath = strings.TrimPrefix(path, cdnPrefix)
+	}
 	SendSuccessResult(res, map[string]string{
-		"url": strings.TrimRight(cdnURL, "/") + path,
+		"url": strings.TrimRight(cdnURL, "/") + cdnPath,
 	})
 }
 
