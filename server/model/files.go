@@ -11,11 +11,26 @@ func MergeConnectionDefaults(conn map[string]string) {
 	if label == "" {
 		return
 	}
+	tmplBind := TmplParams(conn)
 	for k, v := range ConnectionDefaults(label) {
+		v = resolveConnectionTemplate(v, tmplBind)
 		if conn[k] == "" {
 			conn[k] = v
+		} else {
+			conn[k] = resolveConnectionTemplate(conn[k], tmplBind)
 		}
 	}
+}
+
+func resolveConnectionTemplate(value string, tmplBind map[string]string) string {
+	if value == "" || !strings.Contains(value, "{{") {
+		return value
+	}
+	out, err := TmplExec(value, tmplBind)
+	if err != nil {
+		return value
+	}
+	return out
 }
 
 func NewBackend(ctx *App, conn map[string]string) (IBackend, error) {
