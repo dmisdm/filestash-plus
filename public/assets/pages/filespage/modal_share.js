@@ -31,14 +31,12 @@ export default async function(render, { path }) {
         return ctrlCDNShare(render, { url: cdnResult.responseJSON.result.url });
     }
 
+    const defaultRole = isDir(path) ? "browse" : "download";
     const $modal = createElement(`
         <div class="component_share">
             <h2>${t("Create a New Link")}</h2>
             <div class="share--content link-type no-select">
-                <button data-role="viewer">${t("Viewer")}</button>
-                <button data-role="editor">${t("Editor")}</button>
-                <button data-role="download" class="${isDir(path) ? "hidden" : ""}">${t("Download")}</button>
-                <button data-role="uploader" class="${isDir(path) ? "" : "hidden"}">${t("Uploader")}</button>
+                <button data-role="create">${t("Create a New Link")}</button>
             </div>
             <div data-bind="share-body"></div>
         </div>
@@ -59,10 +57,7 @@ export default async function(render, { path }) {
         return rxjs.EMPTY;
     });
     effect(rxjs.merge(
-        onClick(qs($modal, `[data-role="viewer"]`)).pipe(toggle("viewer")),
-        onClick(qs($modal, `[data-role="editor"]`)).pipe(toggle("editor")),
-        onClick(qs($modal, `[data-role="download"]`)).pipe(toggle("download")),
-        onClick(qs($modal, `[data-role="uploader"]`)).pipe(toggle("uploader")),
+        onClick(qs($modal, `[data-role="create"]`)).pipe(toggle(defaultRole)),
         role$.asObservable(),
     ).pipe(rxjs.tap(() => {
         const ctrl = role$.value === null ? ctrlListShares : ctrlCreateShare;
@@ -165,7 +160,7 @@ async function ctrlListShares(render, { load, remove, all, formLinks }) {
         links.forEach((shareObj) => {
             const $share = createElement(`
                 <div class="link-details no-select">
-                    <div class="copy role ellipsis">${t(shareObjToRole(shareObj))}</div>
+                    <div class="copy role ellipsis">${shareRoleLabel(shareObjToRole(shareObj))}</div>
                     <div class="copy path ellipsis" title="${safe(shareObj.path)}">${safe(shareObj.path)}</div>
                     <div class="link-details--icons">
                         <img class="component_icon" draggable="false" src="${IMAGE.DELETE}" alt="delete">
@@ -360,20 +355,9 @@ function ctrlCDNShare(render, { url }) {
 
 function roleToShareObj(role) {
     return {
-        can_read: (function(r) {
-            if (r === "viewer") return true;
-            else if (r === "editor") return true;
-            return false;
-        }(role)),
-        can_write: (function(r) {
-            if (r === "editor") return true;
-            return false;
-        }(role)),
-        can_upload: (function(r) {
-            if (r === "uploader") return true;
-            else if (r === "editor") return true;
-            return false;
-        }(role)),
+        can_read: role === "browse",
+        can_write: false,
+        can_upload: false,
         can_download: role === "download",
     };
 }
@@ -382,13 +366,14 @@ function shareObjToRole({ can_read, can_write, can_upload, can_download }) {
     if (can_download === true && can_read === false && can_write === false && can_upload === false) {
         return "download";
     } else if (can_read === true && can_write === false && can_upload === false) {
-        return "viewer";
-    } else if (can_read === false && can_write === false && can_upload === true) {
-        return "uploader";
-    } else if (can_read === true && can_write === true && can_upload === true) {
-        return "editor";
+        return "browse";
     }
-    return undefined;
+    return "download";
+}
+
+function shareRoleLabel(role) {
+    if (role === "browse") return t("Browse");
+    return t("Download");
 }
 
 export function copyToClipboard(str) {

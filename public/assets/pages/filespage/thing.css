@@ -8,8 +8,23 @@
 .component_thing:not(.loading):hover .component_datetime {
     opacity: 0.8;
 }
-.component_thing:not([href]) {
+.component_thing:not([href]):not(.no-navigate) {
     cursor: not-allowed;
+}
+.component_thing.no-navigate {
+    cursor: default;
+}
+.component_thing .component_action > span > .component_icon {
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    padding: 4px;
+    filter: contrast(0);
+}
+.list > .component_thing.view-grid .component_action {
+    position: absolute;
+    top: 10px;
+    right: 10px;
 }
 .component_thing .file-is-hover {
     background: var(--emphasis-primary);

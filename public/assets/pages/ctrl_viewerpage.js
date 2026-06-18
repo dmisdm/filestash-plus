@@ -1,9 +1,7 @@
 import { createElement, createRender } from "../lib/skeleton/index.js";
 import rxjs, { effect } from "../lib/rx.js";
 import { ApplicationError } from "../lib/error.js";
-import { basename } from "../lib/path.js";
 import assert from "../lib/assert.js";
-import { get as getConfig } from "../model/config.js";
 import { loadCSS } from "../helpers/loader.js";
 import WithShell, { init as initShell } from "../components/decorator_shell_filemanager.js";
 import { init as initMenubar } from "./viewerpage/component_menubar.js";
@@ -11,7 +9,6 @@ import { init as initCache } from "./filespage/cache.js";
 
 import ctrlError from "./ctrl_error.js";
 import { getFilename, getDownloadUrl, getCurrentPath } from "./viewerpage/common.js";
-import { opener } from "./viewerpage/mimetype.js";
 import { options } from "./viewerpage/model_files.js";
 
 import "../components/breadcrumb.js";
@@ -65,11 +62,10 @@ export default WithShell(async function(render) {
     const $page = createElement(`<div class="component_page_viewerpage"></div>`);
     render($page);
 
-    // feature: render viewer application
-    effect(rxjs.of(getConfig("mime", {})).pipe(
-        rxjs.map((mimes) => opener(basename(getCurrentPath()), mimes)),
-        rxjs.mergeMap(([opener, opts]) => rxjs.from(loadModuleWithMemory(opener)).pipe(rxjs.switchMap(async(module) => {
-            module.default(createRender($page), { ...opts, acl$: options(), getFilename, getDownloadUrl });
+    // feature: download-only — /view/ URLs show the downloader, not a viewer/editor
+    effect(rxjs.of(null).pipe(
+        rxjs.mergeMap(() => rxjs.from(loadModuleWithMemory("download")).pipe(rxjs.switchMap(async(module) => {
+            module.default(createRender($page), { mime: "", acl$: options(), getFilename, getDownloadUrl });
         }))),
         rxjs.catchError(ctrlError()),
     ));
@@ -89,11 +85,6 @@ export async function init() {
     return Promise.all([
         loadCSS(import.meta.url, "./ctrl_viewerpage.css"),
         initShell(), initMenubar(), initCache(),
-        rxjs.of(getConfig("mime", {})).pipe(
-            rxjs.map((mimes) => opener(basename(getCurrentPath()), mimes)),
-            rxjs.mergeMap(([opener]) => loadModule(opener)),
-            rxjs.mergeMap((module) => typeof module.init === "function"? module.init() : rxjs.EMPTY),
-            rxjs.catchError(() => rxjs.EMPTY),
-        ).toPromise(),
+        loadModule("download").then((module) => typeof module.init === "function" ? module.init() : null),
     ]);
 }

@@ -25,13 +25,12 @@ export default function(render) {
         else if (step === "email") return ctrlEmail(render, { shareID, setState });
         else if (step === "code") return ctrlEmailCodeVerification(render, { shareID, setState });
         else if (step === "done") {
-            if (state["can_download"]) {
-                const path = encodeURIComponent(state["path"]);
-                location.href = "/" + forwardURLParams(`api/files/cat?path=${path}&mode=download&name=${encodeURIComponent(basename(state["path"]))}&share=${shareID}`, ["share"]);
+            if (isDir(state["path"])) {
+                navigate(toHref(`/files/?share=${shareID}`));
                 return rxjs.EMPTY;
             }
-            if (isDir(state["path"])) navigate(toHref(`/files/?share=${shareID}`));
-            else navigate(toHref(`/view/${encodeURIComponent(basename(state["path"]))}?share=${shareID}&nav=false`));
+            const path = encodeURIComponent(state["path"]);
+            location.href = "/" + forwardURLParams(`api/files/cat?path=${path}&mode=download&name=${encodeURIComponent(basename(state["path"]))}&share=${shareID}`, ["share"]);
             return rxjs.EMPTY;
         }
         else assert.fail(`unknown step: "${step}"`);
