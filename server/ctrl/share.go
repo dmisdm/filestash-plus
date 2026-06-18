@@ -3,12 +3,26 @@ package ctrl
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/gorilla/mux"
 	. "github.com/mickael-kerjean/filestash/server/common"
 	"github.com/mickael-kerjean/filestash/server/model"
-	"net/http"
-	"strings"
 )
+
+func buildShareCDNUrl(base string, cdnPath string) (string, error) {
+	baseURL, err := url.Parse(strings.TrimRight(base, "/"))
+	if err != nil {
+		return "", err
+	}
+	cdnPath = strings.TrimPrefix(cdnPath, "/")
+	if cdnPath == "" {
+		return baseURL.String(), nil
+	}
+	return url.JoinPath(baseURL.String(), cdnPath)
+}
 
 func ShareCDNUrl(ctx *App, res http.ResponseWriter, req *http.Request) {
 	path, err := PathBuilder(ctx, req.URL.Query().Get("path"))
@@ -37,8 +51,13 @@ func ShareCDNUrl(ctx *App, res http.ResponseWriter, req *http.Request) {
 	if cdnPrefix != "/" {
 		cdnPath = strings.TrimPrefix(path, cdnPrefix)
 	}
+	shareURL, err := buildShareCDNUrl(cdnURL, cdnPath)
+	if err != nil {
+		SendSuccessResult(res, nil)
+		return
+	}
 	SendSuccessResult(res, map[string]string{
-		"url": strings.TrimRight(cdnURL, "/") + cdnPath,
+		"url": shareURL,
 	})
 }
 
